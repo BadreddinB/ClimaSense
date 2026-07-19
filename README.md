@@ -1,262 +1,400 @@
 # 🌤️ ClimaSense
 
-## Weather Intelligence for Operational Decision Support
+**AI-powered Short-Term Temperature Forecasting**
 
-ClimaSense is a Minimum Viable Product (MVP) demonstrating how historical weather observations and Machine Learning can support short-term operational decision-making.
+*Supporting Weather-Sensitive Decision Making*
 
-The project combines data ingestion, exploratory data analysis, predictive modelling and interactive visualisation to transform weather data into practical decision-support information.
-
----
-
-# Business Context
-
-Weather conditions directly influence many operational activities, including road maintenance, transportation planning and field operations.
-
-Being able to anticipate temperature variations one day ahead helps organisations prepare preventive actions, optimise resource allocation and reduce operational risks.
-
-This project explores how historical weather data can be transformed into actionable operational insights through Machine Learning.
+🔗 **Live Demo:** https://climasense.streamlit.app/
 
 ---
 
-# Business Questions
+## Overview
 
-This project addresses the following questions:
+ClimaSense is an end-to-end data science project demonstrating how historical weather observations and machine learning can support short-term temperature forecasting.
+
+Rather than focusing solely on predictive performance, the project illustrates a complete analytical workflow—from data acquisition and exploratory analysis to model development and interactive visualization. The objective is to transform raw weather observations into interpretable insights that can support weather-sensitive operational decisions.
+
+---
+
+## Business Context
+
+Weather conditions influence thousands of operational decisions every day.
+
+Road maintenance crews anticipate frost events, airport operators prepare ground activities, energy providers adjust production forecasts, and logistics companies adapt transportation planning according to expected weather conditions.
+
+Although operational decisions rely on many sources of information, having a reasonably accurate estimate of tomorrow's maximum temperature can improve planning and reduce uncertainty.
+
+ClimaSense explores this idea using publicly available weather observations and interpretable machine learning techniques.
+
+The project is intentionally designed as a generic decision-support application rather than a domain-specific solution.
+
+Possible application areas include:
+
+- Winter road maintenance
+
+- Airport ground operations
+
+- Energy demand planning
+
+- Logistics planning
+
+- Emergency preparedness
+
+These examples illustrate potential operational contexts only. ClimaSense predicts temperature and does not replace specialized forecasting systems or operational expertise.
+
+---
+
+## Business Problem
+
+The project investigates the following questions:
 
 - How do weather conditions vary across major French cities?
-- Which cities experience the highest exposure to frost conditions?
-- Can tomorrow's maximum temperature (J+1) be predicted from historical observations?
-- How can these predictions support operational decision-making?
+
+- Which regions experience the greatest exposure to frost or extreme temperatures?
+
+- Can tomorrow's maximum temperature be predicted from historical observations?
+
+- Does a simple machine learning model provide added value compared with a naïve persistence baseline?
 
 ---
 
-# Project Objectives
+## Objectives
 
 The objectives of ClimaSense are to:
 
-- analyse historical weather observations collected across France;
-- identify regional climatic differences and seasonal patterns;
-- build a J+1 temperature forecasting model;
-- visualise predictions through an interactive dashboard;
-- illustrate how Machine Learning can support operational planning.
+- collect and validate historical weather observations;
+
+- explore regional climatic differences and seasonal patterns;
+
+- engineer interpretable predictive features;
+
+- develop and evaluate a next-day (J+1) forecasting model;
+
+- compare machine learning against a persistence baseline;
+
+- communicate results through an interactive Streamlit dashboard.
 
 ---
 
-# Dataset
+## Dataset
 
-**Source**
+| | |
 
-Open-Meteo Archive API
+|---|---|
 
-**Coverage**
+| **Source** | Open-Meteo Archive API |
 
-- France
-- 20 cities
-- January 2022 – December 2022
+| **Coverage** | 20 French cities |
 
-The dataset includes daily meteorological observations such as:
+| **Period** | January–December 2022 |
 
-- minimum temperature
-- maximum temperature
-- precipitation
-- additional weather indicators used during feature engineering
+| **Granularity** | Daily observations |
+
+| **Observations** | 7,300 |
+
+| **Missing values** | None |
+
+
+Daily variables include:
+
+- Maximum temperature
+
+- Minimum temperature
+
+- Total precipitation
+       
+---
+
+## Methodology
+
+The analytical workflow is organized into three Jupyter notebooks.
+
+### Notebook 1 — Data Ingestion
+
+- Retrieve historical observations from the Open-Meteo Archive API.
+
+- Consolidate observations across 20 French cities.
+
+- Validate data completeness and quality.
+
+- Export raw and processed datasets.
+
+### Notebook 2 — Exploratory Data Analysis
+
+The exploratory analysis investigates:
+
+- temperature distributions;
+
+- seasonal patterns;
+
+- regional climatic differences;
+
+- correlations between weather variables;
+
+- frost and heat events;
+
+- statistical anomalies using Z-score detection.
+
+### Notebook 3 — Forecasting Model
+
+Feature engineering generates four interpretable predictors.
+
+| Feature | Purpose |
+
+|---|---|
+
+| Previous day's maximum temperature | Short-term persistence |
+
+| Previous day's minimum temperature | Overnight context |
+
+| Day-of-year (sin) | Seasonal cycle |
+
+| Day-of-year (cos) | Seasonal cycle |
+
+Three regression algorithms are evaluated using **TimeSeriesSplit (5 folds)**.
+
+| Model | Average MAE |
+
+|---|---:|
+
+| Linear Regression | **3.31 °C** |
+
+| Ridge Regression | 12.80 °C |
+
+| Polynomial Regression | 19.48 °C |
+
+Linear Regression is selected because it provides the best balance between prediction accuracy, stability, interpretability, and generalization.
 
 ---
 
-# Solution Overview
+## Results
 
-```
-Open-Meteo Archive API
-            │
-            ▼
-      Data Ingestion
-            │
-            ▼
- Data Cleaning & Preparation
-            │
-            ▼
- Exploratory Data Analysis
-            │
-            ▼
-   Feature Engineering
-            │
-            ▼
- Machine Learning Model
-            │
-            ▼
-  J+1 Temperature Forecast
-            │
-            ▼
- Decision Support Dashboard
-```
+Each city is trained independently using a chronological train/test split:
 
----
+- **Training:** January–September 2022
 
-# Methodology
+- **Testing:** October–December 2022
 
-## Data Preparation
+Overall model performance across the 20 cities:
 
-The dataset was cleaned and prepared before modelling.
+| Metric | Range |
 
-Feature engineering includes:
+|---|---|
 
-- lag feature (J-1 temperature);
-- cyclical seasonal encoding (sin / cos);
-- temporal variables.
+| MAE | 1.60–3.58 °C |
+
+| R² | 0.63–0.78 |
+
+The model successfully captures seasonal temperature dynamics while maintaining consistent predictive performance across different climatic regions.
+
+### Baseline Comparison
+
+Performance is compared against a naïve persistence baseline using today's temperature as tomorrow's prediction.
+
+The results show that:
+
+- the machine learning model slightly outperforms the baseline in several cities;
+
+- the persistence baseline remains highly competitive for one-day forecasting;
+
+- additional historical data and richer features would likely improve predictive performance.
+
+This comparison highlights an important lesson: more complex models do not automatically outperform simple baselines.
 
 ---
 
-## Model Comparison
+## Interactive Dashboard
 
-Several regression models were evaluated.
-
-Models compared:
-
-- Linear Regression ✅
-- Polynomial Regression
-- Ridge Regression
-
-Evaluation metric:
-
-- Mean Absolute Error (MAE)
-
-Validation strategy:
-
-- chronological train/test split;
-- TimeSeriesSplit cross-validation.
-
-Linear Regression provided the best balance between prediction accuracy, simplicity and generalisation.
-
----
-
-# Results
-
-Main observations include:
-
-- average MAE close to **2.5°C**;
-- better prediction accuracy in Mediterranean climates;
-- higher variability in continental and mountainous regions;
-- satisfactory J+1 forecasting performance for short-term operational support.
-
----
-
-# Decision Support Dashboard
-
-The Streamlit dashboard transforms model predictions into operational recommendations.
+The Streamlit application transforms model outputs into an accessible visualization interface.
 
 It provides:
 
-- J+1 maximum temperature forecast;
-- frost-risk indicators;
-- preventive salting recommendation;
-- historical prediction analysis;
-- city performance comparison.
+- Forecast performance metrics for each city;
 
-The objective is not simply to forecast tomorrow's temperature, but to support operational planning through clear and interpretable indicators.
+- Mean Absolute Error (MAE);
 
----
+- Accuracy within ±2 °C;
 
-# Business Insights
+- Frost-risk day count;
 
-The analysis highlights several practical observations.
+- Interactive Plotly visualization comparing predicted and observed temperatures;
 
-- Climate variability differs significantly across French regions.
-- Historical weather observations provide useful information for short-term forecasting.
-- Simple Machine Learning models can outperform more complex alternatives when data availability is limited.
-- Translating predictions into operational recommendations increases the practical value of analytical models.
+- Performance comparison across all 20 cities.
+
+The dashboard is designed to communicate model performance transparently rather than simulate a production forecasting platform.
 
 ---
 
-# Project Structure
+## Repository Structure
 
 ```
+
 ClimaSense/
 
+├── data/
+
+│   ├── raw/
+
+│   ├── processed/
+
+│   └── predictions/
+
+│
+
+├── models/
+
+│
+
 ├── notebooks/
+
 │   ├── 01_ingestion.ipynb
+
 │   ├── 02_eda.ipynb
-│   ├── 03_model.ipynb
-│   └── 04_streamlit.ipynb
+
+│   └── 03_model.ipynb
+
 │
-├── notebooks/data/
-├── notebooks/models/
-├── notebooks/outputs/
+
+├── outputs/
+
+│   └── figures/
+
 │
+
 ├── streamlit_app/
+
 │   └── app.py
+
 │
+
 ├── requirements.txt
-└── README.md
+
+├── README.md
+
+└── LICENSE
+
 ```
 
 ---
 
-# Installation
+## Reproducing the Project
 
 Clone the repository:
 
 ```bash
+
 git clone https://github.com/BadreddinB/ClimaSense.git
 
 cd ClimaSense
+
 ```
 
 Install dependencies:
 
 ```bash
+
 pip install -r requirements.txt
+
 ```
 
-Launch the Streamlit application:
+Run the notebooks sequentially:
+
+```
+
+01_ingestion.ipynb
+
+02_eda.ipynb
+
+03_model.ipynb
+
+```
+
+Launch the dashboard:
 
 ```bash
+
 streamlit run streamlit_app/app.py
+
 ```
 
 ---
 
-# Technologies
+## Technologies
 
 - Python
+
 - Pandas
+
 - NumPy
+
 - Scikit-learn
+
+- Plotly
+
 - Matplotlib
-- Seaborn
+
 - Streamlit
+
 - Open-Meteo Archive API
+
 - Git
+
 - GitHub
 
 ---
 
-# Limitations
+## Limitations
 
 Current limitations include:
 
-- historical observations limited to 2022;
-- J+1 forecasting horizon only;
+- one year of historical observations;
+
 - 20 French cities;
-- offline predictions generated from historical data;
-- no automatic model retraining.
+
+- four engineered input features;
+
+- offline predictions based on historical data;
+
+- no automatic retraining pipeline.
+
+These constraints are intentional and keep the project focused on demonstrating an interpretable end-to-end analytical workflow.
 
 ---
 
-# Future Improvements
+## Future Improvements
 
-Potential future developments include:
+Potential extensions include:
 
-- extending the historical observation period;
-- integrating additional meteorological variables;
-- evaluating alternative forecasting models;
-- using real-time weather observations;
-- containerising the application with Docker;
-- deploying the dashboard on Hugging Face Spaces.
+- multi-year historical observations;
+
+- additional meteorological variables (humidity, wind speed, pressure);
+
+- multi-day forecasting (J+3, J+7);
+
+- comparison with dedicated time-series forecasting models;
+
+- integration of live weather observations;
+
+- automated retraining and model monitoring;
+
+- Docker containerization.
 
 ---
 
-# Operational Perspective
+## Key Takeaways
 
-ClimaSense illustrates how Machine Learning can complement operational expertise by transforming historical weather observations into decision-support information.
+ClimaSense demonstrates how a complete data science workflow can transform a business question into an interpretable machine learning application.
 
-The objective is not to replace operational judgement, but to provide an additional analytical tool supporting short-term planning and risk anticipation.
- 
+Beyond predictive modeling, the project emphasizes:
+
+- translating an operational problem into an analytical workflow;
+
+- building reproducible data pipelines;
+
+- evaluating models using appropriate validation strategies;
+
+- comparing machine learning against meaningful baselines;
+
+- communicating results through an interactive dashboard.
+
+The project intentionally favors transparency, reproducibility, and simplicity over algorithmic complexity, illustrating how machine learning can support operational decision-making without unnecessary overengineering.

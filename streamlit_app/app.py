@@ -1,43 +1,48 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# # 🌤️ ClimaSense – J+1 Temperature Forecast Dashboard
-
-# In[ ]:
-
-
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 from pathlib import Path
 
+# ──────────────────────────────────────────────
+# Page configuration
+# ──────────────────────────────────────────────
+
 st.set_page_config(
-    page_title="ClimaSense - J+1 Temperature Forecast",
-    page_icon="🌤️",
-    layout="wide"
+    page_title="ClimaSense – Operational Temperature Forecasting",
+    page_icon="🌡️",
+    layout="wide",
 )
 
-st.title("🌤️ ClimaSense - J+1 Temperature Forecast")
+# ──────────────────────────────────────────────
+# Header
+# ──────────────────────────────────────────────
 
+st.title("ClimaSense")
+st.markdown(
+    """
+### AI-powered Short-Term Temperature Forecasting
 
-# ## Load prediction data
+Supporting Weather-Sensitive Decision Making
+"""
+)
 
-# In[ ]:
-
+# ──────────────────────────────────────────────
+# Load prediction data
+# ──────────────────────────────────────────────
 
 @st.cache_data
 def load_predictions():
     project_root = Path(__file__).resolve().parent.parent
-    path = project_root /"notebooks" / "data" / "predictions" / "weather_predictions_2022_J1.csv"
+    path = project_root / "data" / "predictions" / "weather_predictions_2022_J1.csv"
 
     try:
         df = pd.read_csv(path)
         df["time"] = pd.to_datetime(df["time"])
 
         required_columns = [
-            "time", "city", "target_temp_max_J1", "prediction"
+            "time", "city", "target_temp_max_J1", "prediction",
         ]
         missing = set(required_columns) - set(df.columns)
 
@@ -52,13 +57,13 @@ def load_predictions():
         st.error("Predictions file not found.")
         st.info("Please run notebook 03_model.ipynb first.")
         st.stop()
-        
-predictions_df=load_predictions()
 
-# ## City selection
 
-# In[ ]:
+predictions_df = load_predictions()
 
+# ──────────────────────────────────────────────
+# Sidebar – Parameters
+# ──────────────────────────────────────────────
 
 st.sidebar.header("Parameters")
 
@@ -67,39 +72,30 @@ cities = sorted(predictions_df["city"].unique())
 selected_city = st.sidebar.selectbox(
     "Select a city",
     cities,
-    index=cities.index("Paris") if "Paris" in cities else 0
+    index=cities.index("Paris") if "Paris" in cities else 0,
 )
 
 city_df = predictions_df[predictions_df["city"] == selected_city].copy()
 
-
-# ## Analysis period
-
-# In[ ]:
-
-
+# Date filter
 st.sidebar.subheader("Analysis period")
 
 date_min = city_df["time"].min().date()
 date_max = city_df["time"].max().date()
 
-use_date_filter = st.sidebar.checkbox(
-    "Filter by date range",
-    value=False
-)
+use_date_filter = st.sidebar.checkbox("Filter by date range", value=False)
 
 if use_date_filter:
     date_range = st.sidebar.date_input(
         "Select period",
         value=(date_min, date_max),
         min_value=date_min,
-        max_value=date_max
+        max_value=date_max,
     )
 
     if len(date_range) == 2:
-        mask = (
-            (city_df["time"].dt.date >= date_range[0]) &
-            (city_df["time"].dt.date <= date_range[1])
+        mask = (city_df["time"].dt.date >= date_range[0]) & (
+            city_df["time"].dt.date <= date_range[1]
         )
         city_df = city_df.loc[mask].copy()
 
@@ -107,13 +103,11 @@ if use_date_filter:
             st.warning("No data available for the selected period.")
             st.stop()
 
+# ──────────────────────────────────────────────
+# Forecast indicators
+# ──────────────────────────────────────────────
 
-# ## Key Decision Indicators
-
-# In[ ]:
-
-
-st.header("Key Decision Indicators")
+st.header(f"Forecast Performance – {selected_city}")
 
 city_df["error"] = city_df["prediction"] - city_df["target_temp_max_J1"]
 city_df["absolute_error"] = city_df["error"].abs()
@@ -122,111 +116,107 @@ mae_city = city_df["absolute_error"].mean()
 precision_2c = (city_df["absolute_error"] <= 2).mean() * 100
 risk_days = (city_df["target_temp_max_J1"] <= 3).sum()
 
-national_mae = predictions_df.groupby("city").apply(
-    lambda x: (x["prediction"] - x["target_temp_max_J1"]).abs().mean()
-).mean()
+national_mae = (
+    predictions_df.groupby("city")
+    .apply(
+        lambda x: (x["prediction"] - x["target_temp_max_J1"]).abs().mean(),
+        include_groups=False,
+    )
+    .mean()
+)
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.metric(
-        "Mean Absolute Error (°C)",
-        f"{mae_city:.2f}",
-        delta=f"{mae_city - national_mae:+.2f} vs national",
-        delta_color="inverse"
+        "Mean Absolute Error",
+        f"{mae_city:.2f} °C",
+        delta=f"{mae_city - national_mae:+.2f} vs 20-city avg",
+        delta_color="inverse",
     )
 
 with col2:
-    st.metric("Accuracy ±2°C", f"{precision_2c:.1f}%")
+    st.metric("Forecast accuracy (±2 °C)", f"{precision_2c:.1f} %")
 
 with col3:
-    st.metric("Days at Frost Risk (≤3°C)", f"{risk_days}")
+    st.metric("Days at frost risk (≤ 3 °C)", f"{risk_days}")
 
+# ──────────────────────────────────────────────
+# Forecast vs actuals (interactive)
+# ──────────────────────────────────────────────
 
-# ## Decision Support – Tomorrow (J+1)
+st.header("Forecast vs actual temperature")
 
-# In[ ]:
+city_df["prediction_error"] = (city_df["prediction"] - city_df["target_temp_max_J1"]).round(1)
 
+fig = go.Figure()
 
-st.header("Decision Support – Tomorrow")
+fig.add_trace(go.Scatter(
+    x=city_df["time"],
+    y=city_df["target_temp_max_J1"],
+    name="Actual temperature",
+    line=dict(color="#2563EB", width=2),
+    hovertemplate="Observed: %{y:.1f} °C<extra></extra>",
+))
 
-last_day = city_df.iloc[-1]
-tomorrow = last_day["time"] + pd.Timedelta(days=1)
-predicted_temp = last_day["prediction"]
+fig.add_trace(go.Scatter(
+    x=city_df["time"],
+    y=city_df["prediction"],
+    name="Model forecast",
+    line=dict(color="#F97316", width=2, dash="dash"),
+    customdata=city_df["prediction_error"],
+    hovertemplate="Predicted: %{y:.1f} °C<br>Error: %{customdata:+.1f} °C<extra></extra>",
+))
 
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric("Date", tomorrow.strftime("%d/%m/%Y"))
-
-with col2:
-    st.metric("Forecasted Max Temperature", f"{predicted_temp:.1f}°C")
-
-with col3:
-    if predicted_temp <= 0:
-        st.error("Frost expected – Salting required")
-    elif predicted_temp <= 3:
-        st.warning("Preventive salting recommended")
-    elif predicted_temp <= 5:
-        st.info("Increased monitoring advised")
-    else:
-        st.success("No action required")
-
-
-# ## Prediction History
-
-# In[ ]:
-
-
-st.header("Prediction History")
-
-fig, ax = plt.subplots(figsize=(14, 5))
-
-ax.plot(
-    city_df["time"],
-    city_df["target_temp_max_J1"],
-    label="Actual temperature",
-    linewidth=2
+fig.add_hline(
+    y=3, line_dash="dot", line_color="#A855F7", opacity=0.7,
+    annotation_text="Alert threshold (3 °C)",
+)
+fig.add_hline(
+    y=0, line_dash="dot", line_color="#3B82F6", opacity=0.7,
+    annotation_text="Frost threshold (0 °C)",
 )
 
-ax.plot(
-    city_df["time"],
-    city_df["prediction"],
-    label="Model prediction",
-    linestyle="--",
-    linewidth=2
+fig.update_layout(
+    title=f"J+1 forecast vs actual – {selected_city}",
+    xaxis_title="Date",
+    yaxis_title="Temperature (°C)",
+    legend=dict(orientation="h", yanchor="bottom", y=1.02),
+    height=450,
+    hovermode="x unified",
 )
 
-ax.axhline(3, color="purple", linestyle=":", label="Salting threshold (3°C)")
-ax.axhline(0, color="blue", linestyle=":", label="Frost threshold (0°C)")
+st.plotly_chart(fig, width="stretch")
 
-ax.set_xlabel("Date")
-ax.set_ylabel("Temperature (°C)")
-ax.set_title(f"J+1 Forecast vs Actual – {selected_city}")
-ax.legend()
-ax.grid(alpha=0.3)
+# ──────────────────────────────────────────────
+# City performance comparison
+# ──────────────────────────────────────────────
 
-st.pyplot(fig)
-plt.close()
+st.header("Model Performance across cities")
 
-
-# ## City Performance Overview
-
-# In[ ]:
-
-
-st.header("City Performance Overview")
-
-city_perf = predictions_df.groupby("city").apply(
-    lambda x: pd.Series({
-        "MAE (°C)": (x["prediction"] - x["target_temp_max_J1"]).abs().mean(),
-        "Accuracy ±2°C (%)": ((x["prediction"] - x["target_temp_max_J1"]).abs() <= 2).mean() * 100,
-        "Days ≤ 3°C": (x["target_temp_max_J1"] <= 3).sum()
-    })
-).reset_index()
+city_perf = (
+    predictions_df.groupby("city")
+    .apply(
+        lambda x: pd.Series(
+            {
+                "MAE (°C)": (x["prediction"] - x["target_temp_max_J1"])
+                .abs()
+                .mean(),
+                "Accuracy ±2 °C (%)": (
+                    (x["prediction"] - x["target_temp_max_J1"]).abs() <= 2
+                ).mean()
+                * 100,
+                "Days ≤ 3 °C": (x["target_temp_max_J1"] <= 3).sum(),
+            }
+        ),
+        include_groups=False,
+    )
+    .reset_index()
+)
 
 st.dataframe(
-    city_perf.sort_values("MAE (°C)"),
-    width='stretch'
+    city_perf.sort_values("MAE (°C)").style.format(
+        {"MAE (°C)": "{:.2f}", "Accuracy ±2 °C (%)": "{:.1f}", "Days ≤ 3 °C": "{:.0f}"}
+    ),
+    width="stretch",  hide_index=True,
 )
-

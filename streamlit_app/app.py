@@ -237,7 +237,7 @@ with col3:
     st.metric("Days at frost risk (≤ 3 °C)", f"{risk_days}")
 
 # ──────────────────────────────────────────────
-# Forecast vs actuals (interactive)
+# Forecast vs actuals 
 # ──────────────────────────────────────────────
 
 st.header("Forecast vs actual temperature")
